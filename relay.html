@@ -1,22 +1,25 @@
 <!doctype html><html><head><meta charset="utf-8"><title>LTP relay</title></head><body style="font:16px sans-serif;padding:12px">
 <p id="s">loading…</p>
 <script>
-// Hands one reel file from this site to the YouTube Studio window that opened this page (chunked download).
+// Hands one or more reel files (f=a.mp4,b.mp4,…) from this site to the YouTube Studio window that opened this page.
 (async () => {
   const S = t => document.getElementById('s').textContent = t;
   try {
-    const f = new URLSearchParams(location.search).get('f') || '';
-    if (!/^[A-Za-z0-9_.-]+\.mp4$/.test(f)) return S('bad file');
-    const url = 'reels/' + f;
-    const head = await fetch(url, {method: 'HEAD', cache: 'no-store'});
-    const len = +head.headers.get('content-length'); const CH = 2 * 1024 * 1024; const parts = [];
-    for (let a = 0; a < len; a += CH) {
-      const r = await fetch(url, {cache: 'no-store', headers: {Range: `bytes=${a}-${Math.min(len, a + CH) - 1}`}});
-      parts.push(await r.arrayBuffer()); S(`loading ${Math.round(100 * Math.min(len, a + CH) / len)} %`);
+    const names = (new URLSearchParams(location.search).get('f') || '').split(',').filter(Boolean);
+    if (!names.length || names.some(f => !/^[A-Za-z0-9_.-]+\.mp4$/.test(f))) return S('bad file list');
+    const files = [];
+    for (const [k, f] of names.entries()) {
+      const url = 'reels/' + f;
+      const len = +(await fetch(url, {method: 'HEAD', cache: 'no-store'})).headers.get('content-length');
+      const CH = 2 * 1024 * 1024, parts = [];
+      for (let a = 0; a < len; a += CH) {
+        const r = await fetch(url, {cache: 'no-store', headers: {Range: `bytes=${a}-${Math.min(len, a + CH) - 1}`}});
+        parts.push(await r.arrayBuffer()); S(`video ${k + 1}/${names.length}: ${Math.round(100 * Math.min(len, a + CH) / len)} %`);
+      }
+      files.push({name: f, blob: new Blob(parts, {type: 'video/mp4'})});
     }
-    const b = new Blob(parts, {type: 'video/mp4'}); window.__blob = b;
-    if (window.opener) { window.opener.postMessage({ltp: true, name: f, blob: b}, 'https://studio.youtube.com'); S('sent ' + b.size + ' – you can close this window'); }
-    else S('loaded ' + b.size + ' (no opener)');
+    if (window.opener) { window.opener.postMessage({ltp: true, files}, 'https://studio.youtube.com'); S(`sent ${files.length} video(s) – you can close this window`); }
+    else S(`loaded ${files.length} video(s) (no opener)`);
   } catch (e) { S('error: ' + e); }
 })();
 </script></body></html>

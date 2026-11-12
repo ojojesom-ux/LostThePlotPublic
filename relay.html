@@ -1,13 +1,22 @@
-<!doctype html><html><head><meta charset="utf-8"><title>LTP relay</title></head><body>
+<!doctype html><html><head><meta charset="utf-8"><title>LTP relay</title></head><body style="font:16px sans-serif;padding:12px">
 <p id="s">loading…</p>
 <script>
-// Hands one reel file from this site to the YouTube Studio window that opened this page.
+// Hands one reel file from this site to the YouTube Studio window that opened this page (chunked download).
 (async () => {
-  const f = new URLSearchParams(location.search).get('f') || '';
-  if (!/^[A-Za-z0-9_.-]+\.mp4$/.test(f)) { document.getElementById('s').textContent = 'bad file'; return; }
-  const r = await fetch('reels/' + f, {cache: 'no-store'}); const b = await r.blob();
-  document.getElementById('s').textContent = 'loaded ' + b.size;
-  if (window.opener) window.opener.postMessage({ltp: true, name: f, blob: b}, 'https://studio.youtube.com');
-  document.getElementById('s').textContent = 'sent ' + b.size;
+  const S = t => document.getElementById('s').textContent = t;
+  try {
+    const f = new URLSearchParams(location.search).get('f') || '';
+    if (!/^[A-Za-z0-9_.-]+\.mp4$/.test(f)) return S('bad file');
+    const url = 'reels/' + f;
+    const head = await fetch(url, {method: 'HEAD', cache: 'no-store'});
+    const len = +head.headers.get('content-length'); const CH = 2 * 1024 * 1024; const parts = [];
+    for (let a = 0; a < len; a += CH) {
+      const r = await fetch(url, {cache: 'no-store', headers: {Range: `bytes=${a}-${Math.min(len, a + CH) - 1}`}});
+      parts.push(await r.arrayBuffer()); S(`loading ${Math.round(100 * Math.min(len, a + CH) / len)} %`);
+    }
+    const b = new Blob(parts, {type: 'video/mp4'}); window.__blob = b;
+    if (window.opener) { window.opener.postMessage({ltp: true, name: f, blob: b}, 'https://studio.youtube.com'); S('sent ' + b.size + ' – you can close this window'); }
+    else S('loaded ' + b.size + ' (no opener)');
+  } catch (e) { S('error: ' + e); }
 })();
 </script></body></html>

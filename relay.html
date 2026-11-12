@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><title>LTP relay</title></head><body>
+<p id="s">loading…</p>
+<script>
+// Hands one reel file from this site to the YouTube Studio window that opened this page.
+(async () => {
+  const f = new URLSearchParams(location.search).get('f') || '';
+  if (!/^[A-Za-z0-9_.-]+\.mp4$/.test(f)) { document.getElementById('s').textContent = 'bad file'; return; }
+  const r = await fetch('reels/' + f, {cache: 'no-store'}); const b = await r.blob();
+  document.getElementById('s').textContent = 'loaded ' + b.size;
+  if (window.opener) window.opener.postMessage({ltp: true, name: f, blob: b}, 'https://studio.youtube.com');
+  document.getElementById('s').textContent = 'sent ' + b.size;
+})();
+</script></body></html>

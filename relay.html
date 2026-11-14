@@ -18,7 +18,9 @@
       }
       files.push({name: f, blob: new Blob(parts, {type: 'video/mp4'})});
     }
-    if (window.opener) { window.opener.postMessage({ltp: true, files}, 'https://studio.youtube.com'); S(`sent ${files.length} video(s) – you can close this window`); }
+    const target = window.opener || (window.parent !== window ? window.parent : null);
+    if (target) { target.postMessage({ltp: true, files}, 'https://studio.youtube.com'); S(`sent ${files.length} video(s)`); }
+    else if (false) { window.opener.postMessage({ltp: true, files}, 'https://studio.youtube.com'); S(`sent ${files.length} video(s) – you can close this window`); }
     else S(`loaded ${files.length} video(s) (no opener)`);
   } catch (e) { S('error: ' + e); }
 })();
